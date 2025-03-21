@@ -72,8 +72,6 @@ tests:
     samples: 500
 ```
 
-Configuration parameters:
-
 ### Configuration parameters:
 - `concurrency`: number of concurrent threads to run the test
 - `samples`: number of test iterations per thread
