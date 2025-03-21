@@ -24,14 +24,18 @@ TestFactory::~TestFactory() {
 //+------------------------------------------------------------------+
 bool TestFactory::Load(LPCSTR path, LPCSTR initializer) {
    char filename[MAX_PATH];
+   // checks
+   if (!path || !initializer) return false;
    // prepare path
    _snprintf_s(filename, _countof(filename), _TRUNCATE, "%s\\tests\\%s", ExtProgramPath, path);
+
    // load DLL
    if ((m_lib = LoadLibrary(path)) != NULL) {
       // load functions
       BtVersion_t BtVersion = reinterpret_cast<BtVersion_t>(GetProcAddress(m_lib, "BtVersion"));
       m_fnBtCreate  = reinterpret_cast<BtCreate_t>(GetProcAddress(m_lib, "BtCreate"));
       m_fnBtDestroy = reinterpret_cast<BtDestroy_t>(GetProcAddress(m_lib, "BtDestroy"));
+
       // check functions pointers
       if (BtVersion && m_fnBtCreate && m_fnBtDestroy) {
          // check version

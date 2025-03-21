@@ -221,7 +221,7 @@ std::string Benchmark::FormatDuration(int64_t duration_ns) {
 void Benchmark::ProcessTimings(size_t id, RunTestCfg* test) {
    // checks
    if (!test) return;
-   
+
    // calculate statistics
    if (test->timings.size() > 0) {
       uint64_t sum = 0, min_time = ULLONG_MAX, max_time = 0;
@@ -242,7 +242,11 @@ void Benchmark::ProcessTimings(size_t id, RunTestCfg* test) {
                 << std::endl;
    }
    else {
-      std::cout << "\t[" << id << "] min/max/avg = N/A" << std::endl;
+      std::cout << "  ["
+                << std::setw(2)  << std::right << id << "] min/max/avg = "
+                << std::setw(39) << std::right << "/ "
+                << (test->initializer.empty() ? "(empty initializer)" : test->initializer)
+                << std::endl;
    }
 }
 //+------------------------------------------------------------------+
