@@ -1,0 +1,15 @@
+# THIS IS AN EXAMPLE!
+
+concurrency: 16        # number of concurrent threads
+samples: 1000000       # number of test iterations per thread
+
+tests:
+  - name: Test
+    load: empty.dll
+    init: "Test"
+    samples: 10000
+    concurrency: 8
+    threads:
+      - "ThreadInitA"
+      - "ThreadInitB"
+      - "ThreadInitC"
