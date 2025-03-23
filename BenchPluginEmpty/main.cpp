@@ -6,13 +6,15 @@
 #include "pch.h"
 
 #define BENCH_API __declspec(dllexport)
-#define BENCH_API_VERSION 1
+#define BENCH_API_VERSION 2
 //+------------------------------------------------------------------+
 //| Interface to the test                                            |
 //+------------------------------------------------------------------+
 class ITest {
 public:
-   virtual int       Run() = 0;
+   virtual int       RunBefore() = 0;
+   virtual int       Run()       = 0;
+   virtual int       RunAfter()  = 0;
 };
 //+------------------------------------------------------------------+
 //| Example with empty implementation                                |
@@ -23,6 +25,9 @@ class Test : public ITest {
       // return FALSE for something fatal to stop the test
       return TRUE;
    }
+
+   virtual int RunBefore() { return TRUE; }
+   virtual int RunAfter()  { return TRUE; }
 };
 //+------------------------------------------------------------------+
 //|                                                                  |

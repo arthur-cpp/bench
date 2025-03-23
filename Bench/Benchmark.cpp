@@ -169,19 +169,24 @@ void Benchmark::RunTest(std::barrier<>& sync, RunTestCfg* test) {
       // loop through
       size_t count;
       for (count = 0; count < test->samples; count++) {
+         // prepare before test
+         if (!instance->RunBefore()) break;
          // record timestamp
          LARGE_INTEGER qpc;
          QueryPerformanceCounter(&qpc);
 
          // run one sample of the test
          auto start = std::chrono::high_resolution_clock::now();
-         if (!test->instance->Run()) break;
+         if (!instance->Run()) break;
          auto end = std::chrono::high_resolution_clock::now();
          
          // store timing data (timestamp and duration)
          auto t = timings + count;
          t->timestamp = qpc.QuadPart;
          t->duration  = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+
+         // after test
+         if (!instance->RunAfter()) break;
       }
       // cut to actual samples count
       test->timings.resize(count);

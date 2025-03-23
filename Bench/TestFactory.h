@@ -7,13 +7,15 @@
 #include <windows.h>
 #include <string>
 
-#define BENCH_API_VERSION 1
+#define BENCH_API_VERSION 2
 //+------------------------------------------------------------------+
 //| Interface to the test                                            |
 //+------------------------------------------------------------------+
 class ITest {
 public:
-   virtual int       Run() = 0;
+   virtual int       RunBefore() = 0;
+   virtual int       Run()       = 0;
+   virtual int       RunAfter()  = 0;
 };
 //+------------------------------------------------------------------+
 //| DLL functions definitions                                        |
