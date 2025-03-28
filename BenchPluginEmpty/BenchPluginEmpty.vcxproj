@@ -127,6 +127,9 @@
       <EnableUAC>false</EnableUAC>
       <ModuleDefinitionFile>BenchPluginEmpty.def</ModuleDefinitionFile>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy /Y /D "$(TargetPath)" "$(TargetDir)\tests\"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -147,6 +150,10 @@
       <EnableUAC>false</EnableUAC>
       <ModuleDefinitionFile>BenchPluginEmpty.def</ModuleDefinitionFile>
     </Link>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="framework.h" />
