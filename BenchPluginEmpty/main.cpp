@@ -6,15 +6,17 @@
 #include "pch.h"
 
 #define BENCH_API __declspec(dllexport)
-#define BENCH_API_VERSION 2
+#define BENCH_API_VERSION 3
 //+------------------------------------------------------------------+
 //| Interface to the test                                            |
 //+------------------------------------------------------------------+
 class ITest {
 public:
-   virtual int       RunBefore() = 0;
-   virtual int       Run()       = 0;
-   virtual int       RunAfter()  = 0;
+   virtual void      Release()   =0;   // release object
+
+   virtual int       RunBefore() = 0;  // before test
+   virtual int       Run()       = 0;  // measured test function
+   virtual int       RunAfter()  = 0;  // after test
 };
 //+------------------------------------------------------------------+
 //| Example with empty implementation                                |
@@ -24,6 +26,10 @@ class Test : public ITest {
       // MUST return TRUE to continue the test
       // return FALSE for something fatal to stop the test
       return TRUE;
+   }
+
+   virtual void Release() {
+      delete this;
    }
 
    virtual int RunBefore() { return TRUE; }
@@ -41,17 +47,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
 BENCH_API ITest* BtCreate(const char* initializer) {
    // instantiate test object
    Test* test = new Test();
-   // return object
+   // return an object
    return test;
-}
-//+------------------------------------------------------------------+
-//| Destroy test object                                              |
-//+------------------------------------------------------------------+
-BENCH_API void BtDestroy(ITest* test) {
-   if (test) {
-      Test* ptr = dynamic_cast<Test*>(test);
-      delete ptr;
-   }
 }
 //+------------------------------------------------------------------+
 //| Main entry point                                                 |

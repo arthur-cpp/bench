@@ -7,22 +7,23 @@
 #include <windows.h>
 #include <string>
 
-#define BENCH_API_VERSION 2
+#define BENCH_API_VERSION 3
 //+------------------------------------------------------------------+
 //| Interface to the test                                            |
 //+------------------------------------------------------------------+
 class ITest {
 public:
-   virtual int       RunBefore() = 0;
-   virtual int       Run()       = 0;
-   virtual int       RunAfter()  = 0;
+   virtual void      Release()   =0;   // release object
+
+   virtual int       RunBefore() = 0;  // before test
+   virtual int       Run()       = 0;  // measured test function
+   virtual int       RunAfter()  = 0;  // after test
 };
 //+------------------------------------------------------------------+
 //| DLL functions definitions                                        |
 //+------------------------------------------------------------------+
-typedef ITest* (*BtCreate_t) (const char* initializer);
-typedef void   (*BtDestroy_t)(ITest* test);
 typedef int    (*BtVersion_t)();
+typedef ITest* (*BtCreate_t) (const char* initializer);
 
 //+------------------------------------------------------------------+
 //|                                                                  |
@@ -32,7 +33,6 @@ private:
    HMODULE           m_lib;
    std::string       m_initializer;
    BtCreate_t        m_fnBtCreate;
-   BtDestroy_t       m_fnBtDestroy;
 
 public:
                      TestFactory();
@@ -41,7 +41,6 @@ public:
    bool              Load(LPCSTR path, LPCSTR initializer);
 
    ITest*            Create(LPCSTR initializer);
-   void              Destroy(ITest* test);
 };
 // globals
 extern char ExtProgramPath[MAX_PATH];

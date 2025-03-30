@@ -133,16 +133,41 @@ void Benchmark::Run() {
          auto total_time = std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count();
          std::cout << "Test \"" << cfg.name << "\" completed in " << FormatDuration(total_time) << ":" << std::endl << std::endl;
 
+         // initialize overall stats
+         RunThreadStats tstats;
+         tstats.min = ULLONG_MAX;
+         tstats.max = 0;
+         tstats.sum = 0;
+         tstats.avg = 0;
+
          // release tests instances and calculate statistics
-         size_t i = 1;
+         size_t counter = 1;
          for (auto test: tests) {
+            RunThreadStats stats;
             // release test instance
-            factory.Destroy(test->instance);
+            test->instance->Release();
             // process timings
-            ProcessTimings(i++, test);
+            ProcessTimings(counter++, test, stats);
+            // update overall stats
+            tstats.sum += stats.sum;
+            tstats.avg += stats.avg;
+            if (stats.min < tstats.min) tstats.min = stats.min;
+            if (stats.max > tstats.max) tstats.max = stats.max;
             // free memory
             delete test;
          }
+         if (counter > 0) {
+            tstats.avg = tstats.avg / counter;
+
+            std::cout << "  ["
+               << std::setw(2)  << std::right << "**" << "] min/max/avg = "
+               << std::setw(10) << std::right << FormatDuration(tstats.min) << " / "
+               << std::setw(10) << std::right << FormatDuration(tstats.max) << " / "
+               << std::setw(10) << std::right << FormatDuration(tstats.avg) << " / -"
+               << std::endl;
+         }
+         // final statistics
+         std::cout << std::endl << "Test \"" << cfg.name << "\" summ run time " << FormatDuration(tstats.sum)  << std::endl;
          std::cout << "======================================================================================" << std::endl;
       }
       else {
@@ -223,34 +248,39 @@ std::string Benchmark::FormatDuration(int64_t duration_ns) {
 //+------------------------------------------------------------------+
 //| Process timings from single thread                               |
 //+------------------------------------------------------------------+
-void Benchmark::ProcessTimings(size_t id, RunTestCfg* test) {
+void Benchmark::ProcessTimings(size_t id, RunTestCfg* test, RunThreadStats& stats) {
+   // initialize stats
+   stats.min = ULLONG_MAX;
+   stats.max = 0;
+   stats.avg = 0;
+   stats.sum = 0;
    // checks
    if (!test) return;
 
    // calculate statistics
    if (test->timings.size() > 0) {
-      uint64_t sum = 0, min_time = ULLONG_MAX, max_time = 0;
+      
       for (auto& timing : test->timings) {
          auto& t = timing.duration;
-         sum += t;
-         if (t < min_time) min_time = t;
-         if (t > max_time) max_time = t;
+         stats.sum += t;
+         if (t < stats.min) stats.min = t;
+         if (t > stats.max) stats.max = t;
       }
-      uint64_t avg_time = sum / test->timings.size();
+      stats.avg = stats.sum / test->timings.size();
 
       std::cout << "  ["
                 << std::setw(2)  << std::right << id << "] min/max/avg = "
-                << std::setw(10) << std::right << FormatDuration(min_time) << " / "
-                << std::setw(10) << std::right << FormatDuration(max_time) << " / "
-                << std::setw(10) << std::right << FormatDuration(avg_time) << " / "
-                << (test->initializer.empty()?"(empty initializer)": test->initializer)
+                << std::setw(10) << std::right << FormatDuration(stats.min) << " / "
+                << std::setw(10) << std::right << FormatDuration(stats.max) << " / "
+                << std::setw(10) << std::right << FormatDuration(stats.avg) << " / "
+                << (test->initializer.empty()?"-": test->initializer)
                 << std::endl;
    }
    else {
       std::cout << "  ["
                 << std::setw(2)  << std::right << id << "] min/max/avg = "
                 << std::setw(39) << std::right << "/ "
-                << (test->initializer.empty() ? "(empty initializer)" : test->initializer)
+                << (test->initializer.empty() ? "-" : test->initializer)
                 << std::endl;
    }
 }

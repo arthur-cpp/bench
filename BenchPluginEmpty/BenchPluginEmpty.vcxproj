@@ -151,8 +151,7 @@
       <ModuleDefinitionFile>BenchPluginEmpty.def</ModuleDefinitionFile>
     </Link>
     <PostBuildEvent>
-      <Command>
-      </Command>
+      <Command>xcopy /Y /D "$(TargetPath)" "$(TargetDir)\tests\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

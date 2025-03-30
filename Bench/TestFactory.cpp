@@ -11,8 +11,7 @@ char ExtProgramPath[MAX_PATH] = "";
 //+------------------------------------------------------------------+
 //| Initialization                                                   |
 //+------------------------------------------------------------------+
-TestFactory::TestFactory() :m_lib(NULL),
-                            m_fnBtCreate(NULL), m_fnBtDestroy(NULL) {
+TestFactory::TestFactory() :m_lib(NULL), m_fnBtCreate(NULL) {
 }
 //+------------------------------------------------------------------+
 //| Free resources                                                   |
@@ -41,10 +40,9 @@ bool TestFactory::Load(LPCSTR path, LPCSTR initializer) {
       // load functions
       BtVersion_t BtVersion = reinterpret_cast<BtVersion_t>(GetProcAddress(m_lib, "BtVersion"));
       m_fnBtCreate  = reinterpret_cast<BtCreate_t>(GetProcAddress(m_lib, "BtCreate"));
-      m_fnBtDestroy = reinterpret_cast<BtDestroy_t>(GetProcAddress(m_lib, "BtDestroy"));
 
       // check functions pointers
-      if (BtVersion && m_fnBtCreate && m_fnBtDestroy) {
+      if (BtVersion && m_fnBtCreate) {
          // check version
          int version = BtVersion();
          if (version == BENCH_API_VERSION) {
@@ -82,12 +80,5 @@ ITest* TestFactory::Create(LPCSTR initializer) {
    }
    // create test instance
    return m_fnBtCreate ? m_fnBtCreate(init.empty() ? NULL : init.c_str()) : NULL;
-}
-//+------------------------------------------------------------------+
-//| Destroy test instance                                            |
-//+------------------------------------------------------------------+
-void TestFactory::Destroy(ITest* test) {
-   if (test && m_fnBtDestroy)
-      m_fnBtDestroy(test);
 }
 //+------------------------------------------------------------------+

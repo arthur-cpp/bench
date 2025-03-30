@@ -38,6 +38,15 @@ struct RunTestCfg {
    Timings        timings;
 };
 //+------------------------------------------------------------------+
+//| Per-thread statistics                                            |
+//+------------------------------------------------------------------+
+struct RunThreadStats {
+   uint64_t       min;
+   uint64_t       max;
+   uint64_t       avg;
+   uint64_t       sum;
+};
+//+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
 class Benchmark {
@@ -56,6 +65,6 @@ public:
 private:
    void              RunTest(std::barrier<>& sync, RunTestCfg* test);
    std::string       FormatDuration(int64_t duration_ns);
-   void              ProcessTimings(size_t id, RunTestCfg* test);
+   void              ProcessTimings(size_t id, RunTestCfg* test, RunThreadStats& stats);
 };
 //+------------------------------------------------------------------+
