@@ -7,7 +7,7 @@
 #include <windows.h>
 #include <string>
 
-#define BENCH_API_VERSION 3
+#define BENCH_API_VERSION 4
 //+------------------------------------------------------------------+
 //| Interface to the test                                            |
 //+------------------------------------------------------------------+
@@ -23,24 +23,29 @@ public:
 //| DLL functions definitions                                        |
 //+------------------------------------------------------------------+
 typedef int    (*BtVersion_t)();
-typedef ITest* (*BtCreate_t) (const char* initializer);
-
+typedef ITest* (*BtCreateTest_t) (const char* initializer, UINT64 context);
+typedef UINT64 (*BtCreateContext_t)(const char* initializer);
+typedef void   (*BtDestroyContext_t)(UINT64);
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
 class TestFactory {
 private:
-   HMODULE           m_lib;
-   std::string       m_initializer;
-   BtCreate_t        m_fnBtCreate;
+   HMODULE              m_lib;
+   std::string          m_initializer;
+   BtCreateTest_t       m_fnBtCreateTest;
+   BtCreateContext_t    m_fnBtCreateContext;
+   BtDestroyContext_t   m_fnDestroyContext;
 
 public:
-                     TestFactory();
-                    ~TestFactory();
+                        TestFactory();
+                       ~TestFactory();
 
-   bool              Load(LPCSTR path, LPCSTR initializer);
+   bool                 Load(LPCSTR path, LPCSTR initializer);
 
-   ITest*            Create(LPCSTR initializer);
+   ITest*               CreateTest(LPCSTR initializer, UINT64 context);
+   UINT64               CreateContext(LPCSTR initializer);
+   void                 DestroyContext(UINT64 context);
 };
 // globals
 extern char ExtProgramPath[MAX_PATH];

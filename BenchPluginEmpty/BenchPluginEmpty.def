@@ -1,5 +1,7 @@
 LIBRARY empty
 
 EXPORTS
-    BtVersion     @1
-    BtCreate      @2
+    BtVersion        @1
+    BtCreateTest     @2
+    BtCreateContext  @3
+    BtDestroyContext @4

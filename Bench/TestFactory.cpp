@@ -11,7 +11,8 @@ char ExtProgramPath[MAX_PATH] = "";
 //+------------------------------------------------------------------+
 //| Initialization                                                   |
 //+------------------------------------------------------------------+
-TestFactory::TestFactory() :m_lib(NULL), m_fnBtCreate(NULL) {
+TestFactory::TestFactory() :m_lib(NULL), m_fnBtCreateTest(NULL),
+                            m_fnBtCreateContext(NULL), m_fnDestroyContext(NULL) {
 }
 //+------------------------------------------------------------------+
 //| Free resources                                                   |
@@ -38,11 +39,13 @@ bool TestFactory::Load(LPCSTR path, LPCSTR initializer) {
    // load DLL
    if ((m_lib = LoadLibrary(filename)) != NULL) {
       // load functions
-      BtVersion_t BtVersion = reinterpret_cast<BtVersion_t>(GetProcAddress(m_lib, "BtVersion"));
-      m_fnBtCreate  = reinterpret_cast<BtCreate_t>(GetProcAddress(m_lib, "BtCreate"));
+      BtVersion_t BtVersion= reinterpret_cast<BtVersion_t>(GetProcAddress(m_lib, "BtVersion"));
+      m_fnBtCreateTest     = reinterpret_cast<BtCreateTest_t>(GetProcAddress(m_lib, "BtCreateTest"));
+      m_fnBtCreateContext  = reinterpret_cast<BtCreateContext_t>(GetProcAddress(m_lib, "BtCreateContext"));
+      m_fnDestroyContext   = reinterpret_cast<BtDestroyContext_t>(GetProcAddress(m_lib, "BtDestroyContext"));
 
       // check functions pointers
-      if (BtVersion && m_fnBtCreate) {
+      if (BtVersion && m_fnBtCreateTest) {
          // check version
          int version = BtVersion();
          if (version == BENCH_API_VERSION) {
@@ -67,8 +70,10 @@ bool TestFactory::Load(LPCSTR path, LPCSTR initializer) {
 //+------------------------------------------------------------------+
 //| Create test instance                                             |
 //+------------------------------------------------------------------+
-ITest* TestFactory::Create(LPCSTR initializer) {
+ITest* TestFactory::CreateTest(LPCSTR initializer, UINT64 context) {
    std::string init;
+   // check
+   if (!m_fnBtCreateTest) return NULL;
    // prepare initalization string
    if (m_initializer.empty()) init = initializer;
    else {
@@ -79,6 +84,19 @@ ITest* TestFactory::Create(LPCSTR initializer) {
       }
    }
    // create test instance
-   return m_fnBtCreate ? m_fnBtCreate(init.empty() ? NULL : init.c_str()) : NULL;
+   return m_fnBtCreateTest(init.empty() ? NULL : init.c_str(), context);
+}
+//+------------------------------------------------------------------+
+//| Create context                                                   |
+//+------------------------------------------------------------------+
+UINT64 TestFactory::CreateContext(LPCSTR initializer) {
+   if (m_fnBtCreateContext) return m_fnBtCreateContext(initializer);
+   return NULL;
+}
+//+------------------------------------------------------------------+
+//| Destroy context                                                  |
+//+------------------------------------------------------------------+
+void TestFactory::DestroyContext(UINT64 context) {
+   if (m_fnDestroyContext) m_fnDestroyContext(context);
 }
 //+------------------------------------------------------------------+

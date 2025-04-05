@@ -7,20 +7,29 @@
 #include "TestFactory.h"
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <barrier>
 
 //+------------------------------------------------------------------+
 //| Configuration of a single test                                   |
 //+------------------------------------------------------------------+
 struct TestCfg {
-   typedef std::vector<std::string> strings;
+   struct ThreadInit {
+      std::string initializer;
+      std::string context;
+   };
+
+   typedef std::vector<ThreadInit>                      Threads;
+   typedef std::unordered_map<std::string, std::string> Contexts;
+   
 
    std::string    name;                      // test name
    std::string    library;                   // name of the DLL
-   std::string    initializer;               // global initialization string for the DLL
    size_t         concurrency;               // number of concurrent threads
    size_t         samples;                   // number of test iterations per thread
-   strings        threads_initializers;      // per-thread initialization strings
+   ThreadInit     thread_default;            // default threads initializer
+   Threads        threads;                   // per-thread initializers
+   Contexts       contexts;                  // contexts map [name=>initializer]
 };
 //+------------------------------------------------------------------+
 //| Configuration of a single running test thread                    |
@@ -33,6 +42,7 @@ struct RunTestCfg {
    typedef std::vector<TimingEntry> Timings;
 
    std::string    initializer;
+   std::string    context_init;
    ITest*         instance;
    size_t         samples;
    Timings        timings;

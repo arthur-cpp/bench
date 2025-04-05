@@ -6,7 +6,7 @@
 #include "pch.h"
 
 #define BENCH_API __declspec(dllexport)
-#define BENCH_API_VERSION 3
+#define BENCH_API_VERSION 4
 //+------------------------------------------------------------------+
 //| Interface to the test                                            |
 //+------------------------------------------------------------------+
@@ -36,22 +36,37 @@ class Test : public ITest {
    virtual int RunAfter()  { return TRUE; }
 };
 //+------------------------------------------------------------------+
-//|                                                                  |
+//| DLL entry point                                                  |
 //+------------------------------------------------------------------+
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved) {
    return TRUE;
 }
 //+------------------------------------------------------------------+
+//| Bench API version                                                |
+//+------------------------------------------------------------------+
+BENCH_API int BtVersion() { return BENCH_API_VERSION; }
+//+------------------------------------------------------------------+
 //| Create test object                                               |
 //+------------------------------------------------------------------+
-BENCH_API ITest* BtCreate(const char* initializer) {
+BENCH_API ITest* BtCreateTest(const char* initializer, UINT64 context) {
    // instantiate test object
    Test* test = new Test();
    // return an object
    return test;
 }
 //+------------------------------------------------------------------+
-//| Main entry point                                                 |
+//| Create context                                                   |
 //+------------------------------------------------------------------+
-BENCH_API int BtVersion() { return BENCH_API_VERSION; }
+BENCH_API UINT64 BtCreateContext(const char* initializer) {
+   // you could create an object and return its pointer
+   // this sample plugin returns a dummy number
+   return 0xDEADBEAF;
+}
+//+------------------------------------------------------------------+
+//| Destroy context                                                  |
+//+------------------------------------------------------------------+
+BENCH_API void BtDestroyContext(UINT64) {
+   // destroy the context object
+   // this sample plugin does nothing with the context
+}
 //+------------------------------------------------------------------+

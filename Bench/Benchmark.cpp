@@ -46,9 +46,12 @@ bool Benchmark::LoadConfig() {
          cfg.name   = test["name"].as<std::string>();
          cfg.library= test["load"].as<std::string>();
          
-         // global initialization string for the DLL
+         // global test initialization string
          if (test["init"])
-            cfg.initializer = test["init"].as<std::string>();
+            cfg.thread_default.initializer = test["init"].as<std::string>();
+         // global test context
+         if (test["context_init"])
+            cfg.thread_default.context = test["context_init"].as<std::string>();
          
          // number of concurrent threads
          if (test["concurrency"]) cfg.concurrency = test["concurrency"].as<int>();
@@ -63,7 +66,18 @@ bool Benchmark::LoadConfig() {
          // per-thread initialization strings
          if (test["threads"]) {
             for (const auto& thread : test["threads"]) {
-               cfg.threads_initializers.push_back(thread.as<std::string>());
+               TestCfg::ThreadInit t;
+               // check and fill the fields
+               if (thread["init"])    t.initializer = thread["init"].as<std::string>();
+               if (thread["context"]) t.context     = thread["context"].as<std::string>();
+               // add new thread config
+               cfg.threads.push_back(std::move(t));
+            }
+         }
+         // contexts map
+         if (test["contexts"]) {
+            for (const auto& context : test["contexts"]) {
+               cfg.contexts[context["name"].as<std::string>()] = context["init"].as<std::string>();
             }
          }
 
@@ -85,9 +99,10 @@ void Benchmark::Run() {
    for (auto& cfg : m_tests) {
       TestFactory factory;
       // load library
-      if (factory.Load(cfg.library.c_str(), cfg.initializer.c_str())) {
-         std::vector<RunTestCfg*> tests;
-         std::vector<std::thread> threads;
+      if (factory.Load(cfg.library.c_str(), cfg.thread_default.initializer.c_str())) {
+         std::vector<RunTestCfg*>                tests;
+         std::vector<std::thread>                threads;
+         std::unordered_map<std::string, UINT64> contexts;
          std::barrier             sync_point(cfg.concurrency + 1);
          LARGE_INTEGER            tqpc; // test start timestamp
          // create and run test threads
@@ -99,11 +114,35 @@ void Benchmark::Run() {
                // store pointer
                tests.push_back(test);
                // select initializer for thread using revolver principe
-               if(cfg.threads_initializers.size()>0)
-                  test->initializer = cfg.threads_initializers[i % cfg.threads_initializers.size()];
+               if (cfg.threads.size() > 0) {
+                  auto& t = cfg.threads[i % cfg.threads.size()];
+                  test->initializer = t.initializer;
+                  // detect context
+                  test->context_init = cfg.thread_default.context;
+                  if (!t.context.empty()) {
+                     auto cit = cfg.contexts.find(t.context);
+                     if (cit != cfg.contexts.end()) {
+                        test->context_init = cit->second;
+                     }
+                  }
+               }
+               // dynamically create contexts
+               UINT64 ctx = 0;
+               if (!test->context_init.empty()) {
+                  auto cit = contexts.find(test->context_init);
+                  if (cit != contexts.end()) {
+                     ctx = cit->second;
+                  }
+                  else {
+                     ctx = factory.CreateContext(test->context_init.c_str());
+                     if (ctx) {
+                        contexts[test->context_init] = ctx;
+                     }
+                  }
+               }
                // store samples count and create test instance
                test->samples  = cfg.samples;
-               test->instance = factory.Create(test->initializer.c_str());
+               test->instance = factory.CreateTest(test->initializer.c_str(), ctx);
                // check and run thread
                if (test->instance) {
                   // run thread
@@ -133,13 +172,17 @@ void Benchmark::Run() {
          auto total_time = std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count();
          std::cout << "Test \"" << cfg.name << "\" completed in " << FormatDuration(total_time) << ":" << std::endl << std::endl;
 
-         // initialize overall stats
+         // initialize overall threads stats
          RunThreadStats tstats;
          tstats.min = ULLONG_MAX;
          tstats.max = 0;
          tstats.sum = 0;
          tstats.avg = 0;
 
+         // release contexts
+         for (const auto& ctx : contexts) {
+            factory.DestroyContext(ctx.second);
+         }
          // release tests instances and calculate statistics
          size_t counter = 1;
          for (auto test: tests) {
@@ -156,6 +199,7 @@ void Benchmark::Run() {
             // free memory
             delete test;
          }
+         // print min/min, max/max, avg/avg for all threads
          if (counter > 0) {
             tstats.avg = tstats.avg / counter;
 
@@ -273,6 +317,7 @@ void Benchmark::ProcessTimings(size_t id, RunTestCfg* test, RunThreadStats& stat
                 << std::setw(10) << std::right << FormatDuration(stats.min) << " / "
                 << std::setw(10) << std::right << FormatDuration(stats.max) << " / "
                 << std::setw(10) << std::right << FormatDuration(stats.avg) << " / "
+                << (test->context_init.empty() ?"":("("+ test->context_init +") "))
                 << (test->initializer.empty()?"-": test->initializer)
                 << std::endl;
    }
@@ -280,6 +325,7 @@ void Benchmark::ProcessTimings(size_t id, RunTestCfg* test, RunThreadStats& stat
       std::cout << "  ["
                 << std::setw(2)  << std::right << id << "] min/max/avg = "
                 << std::setw(39) << std::right << "/ "
+                << (test->context_init.empty() ? "" : ("(" + test->context_init + ") "))
                 << (test->initializer.empty() ? "-" : test->initializer)
                 << std::endl;
    }
