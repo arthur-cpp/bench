@@ -61,10 +61,14 @@ tests:
     init: "Test"
     samples: 10000
     concurrency: 8
+    context_init: "ctxinitDefault"
+    contexts:
+      - { name: "ctxA", init: "ctxInitA" }
+      - { name: "ctxB", init: "ctxInitB" }
     threads:
-      - "ThreadInitA"
-      - "ThreadInitB"
-      - "ThreadInitC"
+      - { init: "ThreadInitA", context: "ctxA" }
+      - { context: "ctxB"}
+      - init: "ThreadInitC"
 
   - name: "Another Test"
     load: AnotherTestPlugin.dll
@@ -79,7 +83,9 @@ tests:
 - `name`: unique identifier for the test
 - `load`: DLL file containing the test implementation
 - `init`: initialization string passed to the test
-- `threads`: list of initialization strings for each thread, used with revolver principe
+- `threads`: list of initialization configuration for each thread, used with revolver principle
+- `context`: default test context, passed to the each test thread
+- `contexts`: named map of contexts initializers, each context could be use in thread configuration by name
 
 ## License
 

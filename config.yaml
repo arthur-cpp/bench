@@ -1,7 +1,7 @@
 # THIS IS AN EXAMPLE!
 
-concurrency: 16        # number of concurrent threads
-samples: 1000000       # number of test iterations per thread
+concurrency: 16  # number of concurrent threads
+samples: 1000000 # number of test iterations per thread
 
 tests:
   - name: Test
@@ -9,7 +9,16 @@ tests:
     init: "Test"
     samples: 10000
     concurrency: 8
+    context_init: "ctxinitDefault"
+    contexts:
+      - { name: "ctxA", init: "ctxInitA" }
+      - { name: "ctxB", init: "ctxInitB" }
     threads:
-      - "ThreadInitA"
-      - "ThreadInitB"
-      - "ThreadInitC"
+      - { init: "ThreadInitA", context: "ctxA" }
+      - { context: "ctxB"}
+      - init: "ThreadInitC"
+
+  - name: "Another Test"
+    load: AnotherTestPlugin.dll
+    concurrency: 2
+    samples: 500
