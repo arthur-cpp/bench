@@ -89,10 +89,4 @@ tests:
 
 ## License
 
-MIT.
-
-## Author
-Arthur Valitov
-https://github.com/arthur-cpp
-
-Copyright (c) 2025, Arthur Valitov
+MIT. Copyright (c) 2025, [Arthur Valitov](https://github.com/arthur-cpp).
