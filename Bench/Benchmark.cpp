@@ -113,12 +113,13 @@ void Benchmark::Run() {
             if (test) {
                // store pointer
                tests.push_back(test);
+               // set default context
+               test->context_init = cfg.thread_default.context;
                // select initializer for thread using revolver principe
                if (cfg.threads.size() > 0) {
                   auto& t = cfg.threads[i % cfg.threads.size()];
                   test->initializer = t.initializer;
                   // detect context
-                  test->context_init = cfg.thread_default.context;
                   if (!t.context.empty()) {
                      auto cit = cfg.contexts.find(t.context);
                      if (cit != cfg.contexts.end()) {
