@@ -89,4 +89,4 @@ tests:
 
 ## License
 
-MIT. Copyright (c) 2025, [Arthur Valitov](https://github.com/arthur-cpp).
+[MIT License](LICENSE). Copyright (c) 2025, [Arthur Valitov](https://github.com/arthur-cpp).
