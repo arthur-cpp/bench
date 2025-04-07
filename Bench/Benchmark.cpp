@@ -179,6 +179,7 @@ void Benchmark::Run() {
          tstats.max = 0;
          tstats.sum = 0;
          tstats.avg = 0;
+         tstats.med = 0;
 
          // release contexts
          for (const auto& ctx : contexts) {
@@ -195,20 +196,23 @@ void Benchmark::Run() {
             // update overall stats
             tstats.sum += stats.sum;
             tstats.avg += stats.avg;
+            tstats.med += stats.med;
             if (stats.min < tstats.min) tstats.min = stats.min;
             if (stats.max > tstats.max) tstats.max = stats.max;
             // free memory
             delete test;
          }
-         // print min/min, max/max, avg/avg for all threads
+         // print min/min, max/max, avg/avg, avg/med for all threads
          if (counter > 0) {
             tstats.avg = tstats.avg / counter;
+            tstats.med = tstats.med / counter;
 
             std::cout << "  ["
-               << std::setw(2)  << std::right << "**" << "] min/max/avg = "
+               << std::setw(2)  << std::right << "**" << "] min/max/avg/med = "
                << std::setw(10) << std::right << FormatDuration(tstats.min) << " / "
                << std::setw(10) << std::right << FormatDuration(tstats.max) << " / "
-               << std::setw(10) << std::right << FormatDuration(tstats.avg) << " / -"
+               << std::setw(10) << std::right << FormatDuration(tstats.avg) << " / "
+               << std::setw(10) << std::right << FormatDuration(tstats.med) << " / -"
                << std::endl;
          }
          // final statistics
@@ -291,6 +295,31 @@ std::string Benchmark::FormatDuration(int64_t duration_ns) {
    }
 }
 //+------------------------------------------------------------------+
+//| Calculate median                                                 |
+//+------------------------------------------------------------------+
+inline uint64_t TimingsMedian(const RunTestCfg::Timings& timings) {
+   if (timings.empty()) return 0;
+
+   std::vector<uint64_t> durations;
+   durations.reserve(timings.size());
+   for (const auto& t : timings)
+      durations.push_back(t.duration);
+
+   size_t n = durations.size();
+   auto mid = durations.begin() + n / 2;
+
+   std::nth_element(durations.begin(), mid, durations.end());
+
+   if (n % 2 != 0) {
+      return *mid;
+   }
+   else {
+      // for an even-sized array, we need the second central element
+      auto mid2 = *std::max_element(durations.begin(), mid);
+      return (*mid + mid2) / 2;
+   }
+}
+//+------------------------------------------------------------------+
 //| Process timings from single thread                               |
 //+------------------------------------------------------------------+
 void Benchmark::ProcessTimings(size_t id, RunTestCfg* test, RunThreadStats& stats) {
@@ -299,6 +328,7 @@ void Benchmark::ProcessTimings(size_t id, RunTestCfg* test, RunThreadStats& stat
    stats.max = 0;
    stats.avg = 0;
    stats.sum = 0;
+   stats.med = 0;
    // checks
    if (!test) return;
 
@@ -312,20 +342,22 @@ void Benchmark::ProcessTimings(size_t id, RunTestCfg* test, RunThreadStats& stat
          if (t > stats.max) stats.max = t;
       }
       stats.avg = stats.sum / test->timings.size();
+      stats.med = TimingsMedian(test->timings);
 
       std::cout << "  ["
-                << std::setw(2)  << std::right << id << "] min/max/avg = "
+                << std::setw(2)  << std::right << id << "] min/max/avg/med = "
                 << std::setw(10) << std::right << FormatDuration(stats.min) << " / "
                 << std::setw(10) << std::right << FormatDuration(stats.max) << " / "
                 << std::setw(10) << std::right << FormatDuration(stats.avg) << " / "
+                << std::setw(10) << std::right << FormatDuration(stats.med) << " / "
                 << (test->context_init.empty() ?"":("("+ test->context_init +") "))
                 << (test->initializer.empty()?"-": test->initializer)
                 << std::endl;
    }
    else {
       std::cout << "  ["
-                << std::setw(2)  << std::right << id << "] min/max/avg = "
-                << std::setw(39) << std::right << "/ "
+                << std::setw(2)  << std::right << id << "] min/max/avg/med = "
+                << std::setw(52) << std::right << "/ "
                 << (test->context_init.empty() ? "" : ("(" + test->context_init + ") "))
                 << (test->initializer.empty() ? "-" : test->initializer)
                 << std::endl;

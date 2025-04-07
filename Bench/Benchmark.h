@@ -54,6 +54,7 @@ struct RunThreadStats {
    uint64_t       min;
    uint64_t       max;
    uint64_t       avg;
+   uint64_t       med;
    uint64_t       sum;
 };
 //+------------------------------------------------------------------+
