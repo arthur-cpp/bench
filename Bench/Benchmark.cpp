@@ -4,8 +4,6 @@
 //|                                    https://github.com/arthur-cpp |
 //+------------------------------------------------------------------+
 #include <iostream>
-#include <thread>
-#include <chrono>
 // yaml-cpp
 #define YAML_CPP_STATIC_DEFINE
 #include <yaml-cpp/yaml.h>
@@ -15,10 +13,7 @@
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
-Benchmark::Benchmark() {}
-//+------------------------------------------------------------------+
-//|                                                                  |
-//+------------------------------------------------------------------+
+Benchmark::Benchmark()  {}
 Benchmark::~Benchmark() {}
 //+------------------------------------------------------------------+
 //|                                                                  |
@@ -97,270 +92,14 @@ bool Benchmark::LoadConfig() {
 //+------------------------------------------------------------------+
 void Benchmark::Run() {
    for (auto& cfg : m_tests) {
-      TestFactory factory;
-      // load library
-      if (factory.Load(cfg.library.c_str(), cfg.thread_default.initializer.c_str())) {
-         std::vector<RunTestCfg*>                tests;
-         std::vector<std::thread>                threads;
-         std::unordered_map<std::string, UINT64> contexts;
-         std::barrier             sync_point(cfg.concurrency + 1);
-         LARGE_INTEGER            tqpc; // test start timestamp
-         // create and run test threads
-         for (size_t i = 0; i < cfg.concurrency; i++) {
-            bool failed = true;
-            // create test instance
-            RunTestCfg* test = new RunTestCfg();
-            if (test) {
-               // store pointer
-               tests.push_back(test);
-               // set default context
-               test->context_init = cfg.thread_default.context;
-               // select initializer for thread using revolver principe
-               if (cfg.threads.size() > 0) {
-                  auto& t = cfg.threads[i % cfg.threads.size()];
-                  test->initializer = t.initializer;
-                  // detect context
-                  if (!t.context.empty()) {
-                     auto cit = cfg.contexts.find(t.context);
-                     if (cit != cfg.contexts.end()) {
-                        test->context_init = cit->second;
-                     }
-                  }
-               }
-               // dynamically create contexts
-               UINT64 ctx = 0;
-               if (!test->context_init.empty()) {
-                  auto cit = contexts.find(test->context_init);
-                  if (cit != contexts.end()) {
-                     ctx = cit->second;
-                  }
-                  else {
-                     ctx = factory.CreateContext(test->context_init.c_str());
-                     if (ctx) {
-                        contexts[test->context_init] = ctx;
-                     }
-                  }
-               }
-               // store samples count and create test instance
-               test->samples  = cfg.samples;
-               test->instance = factory.CreateTest(test->initializer.c_str(), ctx);
-               // check and run thread
-               if (test->instance) {
-                  // run thread
-                  threads.emplace_back(&Benchmark::RunTest, this, std::ref(sync_point), test);
-                  // reset failed flag
-                  failed = false;
-               }
-            }
-            // check failed
-            if (failed) {
-               std::cout << "Test \"" << cfg.name << "\" failed to run new thread" << std::endl;
-            }
-         }
-
-         // start all threads simultaneously
-         std::cout << "======================================================================================" << std::endl;
-         std::cout << "Test \"" << cfg.name << "\" started: " << cfg.concurrency << " threads, " << cfg.samples << " samples" << std::endl;
-         auto start_time = std::chrono::high_resolution_clock::now();
-         QueryPerformanceCounter(&tqpc);
-         sync_point.arrive_and_wait();
-         
-         // wait threads to complete
-         for (auto& t : threads) t.join();
-
-         // print the overall test time
-         auto end_time = std::chrono::high_resolution_clock::now();
-         auto total_time = std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count();
-         std::cout << "Test \"" << cfg.name << "\" completed in " << FormatDuration(total_time) << ":" << std::endl << std::endl;
-
-         // initialize overall threads stats
-         RunThreadStats tstats;
-         tstats.min = ULLONG_MAX;
-         tstats.max = 0;
-         tstats.sum = 0;
-         tstats.avg = 0;
-         tstats.med = 0;
-
-         // release contexts
-         for (const auto& ctx : contexts) {
-            factory.DestroyContext(ctx.second);
-         }
-         // release tests instances and calculate statistics
-         size_t counter = 1;
-         for (auto test: tests) {
-            RunThreadStats stats;
-            // release test instance
-            test->instance->Release();
-            // process timings
-            ProcessTimings(counter++, test, stats);
-            // update overall stats
-            tstats.sum += stats.sum;
-            tstats.avg += stats.avg;
-            tstats.med += stats.med;
-            if (stats.min < tstats.min) tstats.min = stats.min;
-            if (stats.max > tstats.max) tstats.max = stats.max;
-            // free memory
-            delete test;
-         }
-         // print min/min, max/max, avg/avg, avg/med for all threads
-         if (counter > 0) {
-            tstats.avg = tstats.avg / counter;
-            tstats.med = tstats.med / counter;
-
-            std::cout << "  ["
-               << std::setw(2)  << std::right << "**" << "] min/max/avg/med = "
-               << std::setw(10) << std::right << FormatDuration(tstats.min) << " / "
-               << std::setw(10) << std::right << FormatDuration(tstats.max) << " / "
-               << std::setw(10) << std::right << FormatDuration(tstats.avg) << " / "
-               << std::setw(10) << std::right << FormatDuration(tstats.med) << " / -"
-               << std::endl;
-         }
-         // final statistics
-         std::cout << std::endl << "Test \"" << cfg.name << "\" summ run time " << FormatDuration(tstats.sum)  << std::endl;
-         std::cout << "======================================================================================" << std::endl;
+      Test test;
+      // initialize test
+      if (test.Initialize(cfg)) {
+         // run test
+         test.Run();
+         // calculate, show and store statistics
+         test.ProcessStatistics();
       }
-      else {
-         std::cerr << "Test \"" << cfg.name << "\" load failed" << std::endl;
-      }
-   }
-}
-//+------------------------------------------------------------------+
-//| Run single instance of test                                      |
-//+------------------------------------------------------------------+
-void Benchmark::RunTest(std::barrier<>& sync, RunTestCfg* test) {
-   // checks
-   if (!test) return;
-   // prepare size for timings
-   test->timings.resize(test->samples);
-   
-   // synchronize start
-   sync.arrive_and_wait();
-
-   // run test
-   if (test->instance) {
-      auto instance = test->instance;
-      auto timings  = test->timings.data();
-      // loop through
-      size_t count;
-      for (count = 0; count < test->samples; count++) {
-         // prepare before test
-         if (!instance->RunBefore()) break;
-         // record timestamp
-         LARGE_INTEGER qpc;
-         QueryPerformanceCounter(&qpc);
-
-         // run one sample of the test
-         auto start = std::chrono::high_resolution_clock::now();
-         if (!instance->Run()) break;
-         auto end = std::chrono::high_resolution_clock::now();
-         
-         // store timing data (timestamp and duration)
-         auto t = timings + count;
-         t->timestamp = qpc.QuadPart;
-         t->duration  = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-
-         // after test
-         if (!instance->RunAfter()) break;
-      }
-      // cut to actual samples count
-      test->timings.resize(count);
-   }
-}
-//+------------------------------------------------------------------+
-//| Format duration as string                                        |
-//+------------------------------------------------------------------+
-std::string Benchmark::FormatDuration(int64_t duration_ns) {
-   constexpr int precision = 3;
-
-   if (duration_ns < 1'000) {                // < 1 us
-      return std::to_string(duration_ns) + " ns";
-   }
-   else if (duration_ns < 1'000'000) {       // < 1 ms
-      double us = duration_ns / 1'000.0;
-      std::ostringstream oss;
-      oss << std::fixed << std::setprecision(precision) << us << " us";
-      return oss.str();
-   }
-   else if (duration_ns < 1'000'000'000) {   // < 1 sec
-      double ms = duration_ns / 1'000'000.0;
-      std::ostringstream oss;
-      oss << std::fixed << std::setprecision(precision) << ms << " ms";
-      return oss.str();
-   }
-   else {                                    // >= 1 sec
-      double sec = duration_ns / 1'000'000'000.0;
-      std::ostringstream oss;
-      oss << std::fixed << std::setprecision(precision) << sec << " seconds";
-      return oss.str();
-   }
-}
-//+------------------------------------------------------------------+
-//| Calculate median                                                 |
-//+------------------------------------------------------------------+
-inline uint64_t TimingsMedian(const RunTestCfg::Timings& timings) {
-   if (timings.empty()) return 0;
-
-   std::vector<uint64_t> durations;
-   durations.reserve(timings.size());
-   for (const auto& t : timings)
-      durations.push_back(t.duration);
-
-   size_t n = durations.size();
-   auto mid = durations.begin() + n / 2;
-
-   std::nth_element(durations.begin(), mid, durations.end());
-
-   if (n % 2 != 0) {
-      return *mid;
-   }
-   else {
-      // for an even-sized array, we need the second central element
-      auto mid2 = *std::max_element(durations.begin(), mid);
-      return (*mid + mid2) / 2;
-   }
-}
-//+------------------------------------------------------------------+
-//| Process timings from single thread                               |
-//+------------------------------------------------------------------+
-void Benchmark::ProcessTimings(size_t id, RunTestCfg* test, RunThreadStats& stats) {
-   // initialize stats
-   stats.min = ULLONG_MAX;
-   stats.max = 0;
-   stats.avg = 0;
-   stats.sum = 0;
-   stats.med = 0;
-   // checks
-   if (!test) return;
-
-   // calculate statistics
-   if (test->timings.size() > 0) {
-      
-      for (auto& timing : test->timings) {
-         auto& t = timing.duration;
-         stats.sum += t;
-         if (t < stats.min) stats.min = t;
-         if (t > stats.max) stats.max = t;
-      }
-      stats.avg = stats.sum / test->timings.size();
-      stats.med = TimingsMedian(test->timings);
-
-      std::cout << "  ["
-                << std::setw(2)  << std::right << id << "] min/max/avg/med = "
-                << std::setw(10) << std::right << FormatDuration(stats.min) << " / "
-                << std::setw(10) << std::right << FormatDuration(stats.max) << " / "
-                << std::setw(10) << std::right << FormatDuration(stats.avg) << " / "
-                << std::setw(10) << std::right << FormatDuration(stats.med) << " / "
-                << (test->context_init.empty() ?"":("("+ test->context_init +") "))
-                << (test->initializer.empty()?"-": test->initializer)
-                << std::endl;
-   }
-   else {
-      std::cout << "  ["
-                << std::setw(2)  << std::right << id << "] min/max/avg/med = "
-                << std::setw(52) << std::right << "/ "
-                << (test->context_init.empty() ? "" : ("(" + test->context_init + ") "))
-                << (test->initializer.empty() ? "-" : test->initializer)
-                << std::endl;
    }
 }
 //+------------------------------------------------------------------+

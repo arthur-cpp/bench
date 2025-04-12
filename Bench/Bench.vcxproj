@@ -143,11 +143,13 @@
   <ItemGroup>
     <ClCompile Include="Bench.cpp" />
     <ClCompile Include="Benchmark.cpp" />
+    <ClCompile Include="Test.cpp" />
     <ClCompile Include="TestFactory.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Benchmark.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="Test.h" />
     <ClInclude Include="TestFactory.h" />
   </ItemGroup>
   <ItemGroup>
